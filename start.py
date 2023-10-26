@@ -4,6 +4,7 @@ from typing import Dict, List, Set, Tuple
 
 import graphviz  # type: ignore
 import numpy as np
+from loguru import logger  # type: ignore
 from numba import jit  # type: ignore
 
 
@@ -83,6 +84,12 @@ def find_negatives(
                 j_class = points2class[j]
                 negative_pairs = product(class2cluster[i_class], class2cluster[j_class])
                 for neg_i, neg_j in negative_pairs:
+                    # TODO добавить сохранение таких индексов для последующего анализа ошибок в разметке
+                    if matrix[neg_i, neg_j] == 1:
+                        logger.warning('Supposed negative pair has positive label!')
+                    if matrix[neg_i, neg_j] == 1:
+                        logger.warning('Supposed negative pair has positive label!')
+
                     matrix[neg_i, neg_j] = -1
                     matrix[neg_j, neg_i] = -1
                     all_negative_pairs.add((i, j))
@@ -103,6 +110,7 @@ if __name__ == '__main__':
     name2idx = {str(i + 1): i for i in range(arr.shape[0])}
     idx2name = {v: k for k, v in name2idx.items()}
 
+    logger.info('Finding relations...')
     clusters = find_relations(arr)
     graph = graphviz.Graph(format='png')
     written_edges = set()
@@ -123,10 +131,14 @@ if __name__ == '__main__':
                 written_edges.add((i, j))
 
     arr = set_ones(arr, clusters)
+    logger.info('Finding negatives...')
     arr, negative_pairs = find_negatives(arr, class2cluster, points2class)
     for i, j in negative_pairs:
         if i != j and (j, i) not in written_edges:
             graph.edge(idx2name[i], idx2name[j], label='Different')
             written_edges.add((i, j))
 
+    logger.info('Rendering graph...')
     graph.render(directory='graph')
+
+    logger.info('Done.')
